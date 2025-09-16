@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { MailIcon, PhoneIcon, MapPinIcon } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { MailIcon, PhoneIcon, MapPinIcon, Loader2 } from 'lucide-react';
+import emailjs from '@emailjs/browser';
+import { EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, EMAILJS_PUBLIC_KEY } from '../config/emailjs';
 const Contact = () => {
   const [formData, setFormData] = useState({
     name: '',
@@ -7,6 +9,9 @@ const Contact = () => {
     subject: '',
     message: ''
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<{type: 'success' | 'error' | null, message: string}>({type: null, message: ''});
+  const formRef = useRef<HTMLFormElement>(null);
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const {
       name,
@@ -17,17 +22,44 @@ const Contact = () => {
       [name]: value
     }));
   };
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // In a real implementation, you would send this data to a server
-    console.log('Form submitted:', formData);
-    alert("Thank you for your message! We'll get back to you soon.");
-    setFormData({
-      name: '',
-      email: '',
-      subject: '',
-      message: ''
-    });
+    
+    if (!formRef.current) return;
+    
+    setIsSubmitting(true);
+    setSubmitStatus({type: null, message: ''});
+    
+    try {
+      await emailjs.sendForm(
+        EMAILJS_SERVICE_ID,
+        EMAILJS_TEMPLATE_ID,
+        formRef.current,
+        EMAILJS_PUBLIC_KEY
+      );
+      
+      setSubmitStatus({
+        type: 'success',
+        message: 'Thank you for your message! We will get back to you soon.'
+      });
+      
+      // Reset form
+      setFormData({
+        name: '',
+        email: '',
+        subject: '',
+        message: ''
+      });
+      
+    } catch (error) {
+      console.error('Error sending email:', error);
+      setSubmitStatus({
+        type: 'error',
+        message: 'Failed to send message. Please try again later or contact us directly at nexalabslk@gmail.com'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   return <section id="contact" className="py-20 bg-secondary">
       <div className="container mx-auto px-4 md:px-6">
@@ -90,7 +122,7 @@ const Contact = () => {
               <h3 className="text-2xl font-bold text-primary mb-6">
                 Send Us a Message
               </h3>
-              <form onSubmit={handleSubmit}>
+              <form ref={formRef} onSubmit={handleSubmit}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                   <div>
                     <label htmlFor="name" className="block text-gray-700 font-medium mb-2">
@@ -117,9 +149,31 @@ const Contact = () => {
                   </label>
                   <textarea id="message" name="message" value={formData.message} onChange={handleChange} required rows={5} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-bright-blue focus:border-transparent transition-all duration-300" placeholder="Tell us about your project..."></textarea>
                 </div>
-                <button type="submit" className="w-full bg-gradient-to-r from-primary to-bright-blue hover:from-bright-blue hover:to-primary text-white transition-all duration-500 rounded-lg px-8 py-4 font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1">
-                  Send Message
-                </button>
+                <div className="flex flex-col items-center">
+                  <button 
+                    type="submit" 
+                    disabled={isSubmitting}
+                    className={`w-full bg-gradient-to-r from-primary to-bright-blue hover:from-bright-blue hover:to-primary text-white transition-all duration-500 rounded-lg px-8 py-4 font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center justify-center gap-2 ${
+                      isSubmitting ? 'opacity-75 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="animate-spin h-5 w-5" />
+                        Sending...
+                      </>
+                    ) : (
+                      'Send Message'
+                    )}
+                  </button>
+                  {submitStatus.message && (
+                    <p className={`mt-3 text-sm ${
+                      submitStatus.type === 'success' ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {submitStatus.message}
+                    </p>
+                  )}
+                </div>
               </form>
             </div>
           </div>
